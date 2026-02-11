@@ -3,16 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sprinklo - Universal Mechanical Cap</title>
+    <title>Sprinklo | The Mechanical Cap</title>
     
-    <!-- 1. Load Tailwind CSS -->
+    <!-- 1. Load Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- 2. Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                fontFamily: { sans: ['Inter', 'sans-serif'] },
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            900: '#0c4a6e',
+                            950: '#082f49',
+                        }
+                    },
+                    boxShadow: {
+                        'glow': '0 0 40px -10px rgba(14, 165, 233, 0.3)',
+                    }
+                }
+            }
+        }
+    </script>
     
-    <!-- 2. Load React and ReactDOM (Development versions for better error logging) -->
+    <!-- 3. Load React Dependencies -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    
-    <!-- 3. Load Babel -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <!-- 4. Load Three.js -->
@@ -20,483 +45,662 @@
 
     <style>
         html { scroll-behavior: smooth; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { font-family: 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+        .glass-panel { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body>
+<body class="bg-zinc-50 text-zinc-900 selection:bg-brand-500 selection:text-white">
     <div id="root"></div>
 
     <script type="text/babel">
-        // --- Globals Setup ---
         const { useState, useEffect, useRef } = React;
         const THREE = window.THREE;
 
-        // --- Inlined Icons (Replaces external dependency to fix crash) ---
-        const Icon = ({ children, ...props }) => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>{children}</svg>
+        // --- Optimized Icons ---
+        const Icon = ({ path, className = "w-6 h-6" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
         );
 
-        const Droplets = (props) => <Icon {...props}><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.35"/></Icon>;
-        const RotateCw = (props) => <Icon {...props}><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></Icon>;
-        const Menu = (props) => <Icon {...props}><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></Icon>;
-        const X = (props) => <Icon {...props}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></Icon>;
-        const Droplet = (props) => <Icon {...props}><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></Icon>;
-        const HandMetal = (props) => <Icon {...props}><path d="M18 12.5V10a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1.4"/><path d="M14 11V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/><path d="M10 10.5V5a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10"/><path d="M16 14v4.5a.5.5 0 0 1-.5.5h-4a2 2 0 0 1-2-2v-1.5H7a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V14a2 2 0 0 0-2-2h-2v-1"/></Icon>;
-        const Waves = (props) => <Icon {...props}><path d="M2 6c.6.5 1.2 1 2.5 1C7 7 7 5 9.5 5c2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 12c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/><path d="M2 18c.6.5 1.2 1 2.5 1 2.5 0 2.5-2 5-2 2.6 0 2.4 2 5 2 2.5 0 2.5-2 5-2 1.3 0 1.9.5 2.5 1"/></Icon>;
-        const Touchpad = (props) => <Icon {...props}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M12 12v4"/><path d="M2 12h20"/></Icon>;
-        const AlertTriangle = (props) => <Icon {...props}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></Icon>;
-        const Recycle = (props) => <Icon {...props}><path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"/><path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"/><path d="m14 16-3 3 3 3"/><path d="M8.293 13.596 7.196 9.5 3.1 9.5a1.83 1.83 0 0 1-1.582-.885 1.784 1.784 0 0 1-.004-1.78L4.84 2.5a1.83 1.83 0 0 1 1.57-.88 1.785 1.785 0 0 1 1.574.862l1.82 3.12"/><path d="m12 9 3-3-3-3"/><path d="M14.644 12.783a1.784 1.784 0 0 0 .004-1.78l-3.106-5.38"/><path d="m8.293 13.596 3.797 6.573a1.836 1.836 0 0 0 1.59 1.031h4.2a1.83 1.83 0 0 0 1.585-.896 1.784 1.784 0 0 0 .006-1.785l-1.83-3.166"/><path d="m18 13-3 3 3 3"/></Icon>;
-        const Maximize2 = (props) => <Icon {...props}><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" x2="14" y1="3" y2="10"/><line x1="3" x2="10" y1="21" y2="14"/></Icon>;
-        const Mail = (props) => <Icon {...props}><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></Icon>;
-        const Phone = (props) => <Icon {...props}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.12 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></Icon>;
-        const MapPin = (props) => <Icon {...props}><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></Icon>;
-        const Send = (props) => <Icon {...props}><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></Icon>;
-        const Timer = (props) => <Icon {...props}><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></Icon>;
-        const ShoppingBag = (props) => <Icon {...props}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></Icon>;
-        const ChevronRight = (props) => <Icon {...props}><path d="m9 18 6-6-6-6"/></Icon>;
-        const ShieldCheck = (props) => <Icon {...props}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></Icon>;
+        const Icons = {
+            Menu: <><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></>,
+            X: <><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>,
+            ChevronDown: <path d="m6 9 6 6 6-6" />,
+            Check: <path d="M20 6 9 17l-5-5" />,
+            Droplets: <><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.35"/></>,
+            Rotate: <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8M21 3v5h-5"/>,
+            Hand: <path d="M18 12.5V10a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v1.4M14 11V9a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2M10 10.5V5a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10M16 14v4.5a.5.5 0 0 1-.5.5h-4a2 2 0 0 1-2-2v-1.5H7a2 2 0 0 0-2 2v2a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V14a2 2 0 0 0-2-2h-2v-1"/>,
+            Shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>,
+            Mail: <><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></>,
+            Recycle: <path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12M14 16l-3 3 3 3M8.293 13.596 7.196 9.5 3.1 9.5a1.83 1.83 0 0 1-1.582-.885 1.784 1.784 0 0 1-.004-1.78L4.84 2.5a1.83 1.83 0 0 1 1.57-.88 1.785 1.785 0 0 1 1.574.862l1.82 3.12M12 9l3-3-3-3M14.644 12.783a1.784 1.784 0 0 0 .004-1.78l-3.106-5.38M8.293 13.596 3.797 6.573a1.836 1.836 0 0 0 1.59 1.031h4.2a1.83 1.83 0 0 0 1.585-.896 1.784 1.784 0 0 0 .006-1.785l-1.83-3.166M18 13l-3 3 3 3"/>,
+            Send: <><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>,
+            Users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>,
+            ArrowRight: <><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></>
+        };
 
-        // --- 3D Model Component ---
-        const Sprinklo3DModel = ({ rotationAngle, isPressed }) => {
+        // --- High Fidelity 3D Component ---
+        const SprinkloCanvas = ({ rotationAngle, isPressed, onLoaded }) => {
             const mountRef = useRef(null);
-            const particleDataRef = useRef([]);
-
+            
             useEffect(() => {
-                if (!mountRef.current) return;
-
                 const width = mountRef.current.clientWidth;
                 const height = mountRef.current.clientHeight;
 
-                // --- Scene ---
+                // 1. Setup
                 const scene = new THREE.Scene();
-                scene.background = new THREE.Color(0xf8fafc); 
-                const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-                camera.position.set(0, 1.5, 7.5); 
-                camera.lookAt(0, 0, 0);
+                scene.background = null; 
+                
+                const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+                camera.position.set(0, 2, 7); 
+                camera.lookAt(0, -0.5, 0);
 
-                const renderer = new THREE.WebGLRenderer({ 
-                    antialias: true, 
-                    alpha: true, 
-                    powerPreference: "high-performance"
-                });
+                const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, precision: "mediump" });
                 renderer.setSize(width, height);
                 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.2;
                 mountRef.current.appendChild(renderer.domElement);
 
-                const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-                scene.add(ambientLight);
-                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
-                directionalLight.position.set(5, 10, 7.5);
-                scene.add(directionalLight);
+                // 2. Lighting
+                const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+                scene.add(ambient);
 
-                const sprinklo = new THREE.Group();
+                const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                keyLight.position.set(5, 5, 5);
+                scene.add(keyLight);
 
-                const materials = {
-                    base: new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 }),
-                    silicone: new THREE.MeshStandardMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.8 }),
-                    top: new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.2 }),
-                    hole: new THREE.MeshBasicMaterial({ color: 0x0f172a }),
-                    water: new THREE.MeshBasicMaterial({ color: 0x60a5fa })
+                const fillLight = new THREE.DirectionalLight(0xbfdbfe, 0.8);
+                fillLight.position.set(-5, 0, 2);
+                scene.add(fillLight);
+
+                const rimLight = new THREE.SpotLight(0xffffff, 2);
+                rimLight.position.set(0, 5, -5);
+                rimLight.lookAt(0, 0, 0);
+                scene.add(rimLight);
+
+                // 3. Materials
+                const mats = {
+                    rubberDark: new THREE.MeshStandardMaterial({ 
+                        color: 0x1a1a1a, 
+                        roughness: 0.9, 
+                        metalness: 0.1,
+                        flatShading: false
+                    }),
+                    plasticMatte: new THREE.MeshStandardMaterial({ 
+                        color: 0x222222, 
+                        roughness: 0.4, 
+                        metalness: 0.1 
+                    }),
+                    carbonLike: new THREE.MeshStandardMaterial({
+                        color: 0x111111,
+                        roughness: 0.6,
+                        metalness: 0.3,
+                        bumpScale: 0.02
+                    }),
+                    siliconeBlue: new THREE.MeshPhysicalMaterial({ 
+                        color: 0x0ea5e9, 
+                        transmission: 0.4, 
+                        opacity: 0.9, 
+                        transparent: true,
+                        roughness: 0.2, 
+                        ior: 1.5,
+                        thickness: 0.5
+                    }),
+                    water: new THREE.MeshBasicMaterial({
+                        color: 0x0ea5e9,
+                    })
                 };
 
-                // Base
-                const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.3, 1, 24), materials.base);
-                base.position.y = -0.5;
-                sprinklo.add(base);
+                const sprinkloGroup = new THREE.Group();
 
-                // Silicone
-                const silicone = new THREE.Mesh(new THREE.CylinderGeometry(1.18, 1.18, 0.15, 24), materials.silicone);
-                silicone.position.y = 0.05;
-                sprinklo.add(silicone);
+                // A. The Rugged Grip (Base) - STRAIGHTENED & SHORTENED
+                const gripGroup = new THREE.Group();
+                // Changed from (1.2, 1.25, ...) to (1.2, 1.2, ...) for straight sides
+                const gripCore = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 0.6, 64), mats.plasticMatte);
+                gripCore.position.y = -0.3; // Centered for the 0.6 height
+                gripGroup.add(gripCore);
+                sprinkloGroup.add(gripGroup);
 
-                // Top
+                // B. Silicone Seal Ring
+                const seal = new THREE.Mesh(new THREE.TorusGeometry(1.15, 0.08, 16, 64), mats.siliconeBlue);
+                seal.rotation.x = Math.PI / 2;
+                seal.position.y = 0.0;
+                sprinkloGroup.add(seal);
+
+                // C. Top Rotating Cap (Upper Wall)
                 const topGroup = new THREE.Group();
-                const topMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 0.8, 24), materials.top);
-                topGroup.add(topMesh);
+                
+                // Main cap body (Taller)
+                const capBody = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 1.0, 64), mats.plasticMatte);
+                capBody.position.y = 0.5; // Base at 0, top at 1.0
+                topGroup.add(capBody);
+                
+                // Rubber Grips - MOVED TO TOP HALF
+                const ribCount = 20;
+                for(let i=0; i<ribCount; i++) {
+                    const angle = (i / ribCount) * Math.PI * 2;
+                    // Shorter ribs (0.5 height) placed on the upper half
+                    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.08), mats.rubberDark);
+                    // y=0.75 centers them on the top half (0.5 to 1.0)
+                    rib.position.set(Math.cos(angle) * 1.12, 0.75, Math.sin(angle) * 1.12);
+                    rib.rotation.y = -angle;
+                    topGroup.add(rib);
+                }
 
-                // Holes
-                const holePositions = [
-                    new THREE.Vector3(0.4, 0.401, 0.4), new THREE.Vector3(-0.4, 0.401, 0.4),
-                    new THREE.Vector3(0.4, 0.401, -0.4), new THREE.Vector3(-0.4, 0.401, -0.4),
-                    new THREE.Vector3(0.6, 0.401, 0), new THREE.Vector3(-0.6, 0.401, 0),
-                    new THREE.Vector3(0, 0.401, 0.6), new THREE.Vector3(0, 0.401, -0.6),
-                    new THREE.Vector3(0, 0.401, 0)
-                ];
-                const holeGeo = new THREE.CircleGeometry(0.12, 8);
-                holePositions.forEach((pos) => {
-                    const hole = new THREE.Mesh(holeGeo, materials.hole);
+                // Screw Threads - ADDED TO LOWER HALF OF TOP CAP
+                for(let i=0; i<3; i++) {
+                    // Threads on the lower 0.5 section
+                    const thread = new THREE.Mesh(new THREE.TorusGeometry(1.12, 0.03, 16, 64), mats.plasticMatte);
+                    thread.rotation.x = Math.PI / 2;
+                    thread.position.y = 0.15 + (i * 0.1); // 0.15, 0.25, 0.35
+                    topGroup.add(thread);
+                }
+
+                // Carbon-style top surface plate
+                const capPlate = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.05, 64), mats.carbonLike);
+                capPlate.position.y = 1.01;
+                topGroup.add(capPlate);
+
+                // Holes Pattern
+                const holeMat = new THREE.MeshBasicMaterial({ color: 0x050505 });
+                const holePositions = [];
+                
+                holePositions.push([0, 0]); // Center
+                
+                const innerRad = 0.35;
+                for(let i=0; i<6; i++) {
+                    const angle = (i / 6) * Math.PI * 2;
+                    holePositions.push([Math.cos(angle) * innerRad, Math.sin(angle) * innerRad]);
+                }
+
+                const outerRad = 0.65;
+                for(let i=0; i<12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
+                    holePositions.push([Math.cos(angle) * outerRad, Math.sin(angle) * outerRad]);
+                }
+                
+                holePositions.forEach(pos => {
+                    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.08, 16), holeMat);
                     hole.rotation.x = -Math.PI / 2;
-                    hole.position.copy(pos);
+                    hole.position.set(pos[0], 1.04, pos[1]);
                     topGroup.add(hole);
                 });
-                sprinklo.add(topGroup);
-                scene.add(sprinklo);
 
-                // --- Instanced Particles ---
-                const particleCount = 200;
+                sprinkloGroup.add(topGroup);
+                scene.add(sprinkloGroup);
+
+                // --- Particles ---
+                const particleCount = 400;
                 const dummy = new THREE.Object3D();
-                const instancedMesh = new THREE.InstancedMesh(
-                    new THREE.SphereGeometry(0.045, 4, 4), 
-                    materials.water, 
-                    particleCount
-                );
-                instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-                scene.add(instancedMesh);
+                const particleMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(0.035, 8, 8), mats.water, particleCount);
+                particleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+                scene.add(particleMesh);
 
-                const particles = [];
-                for (let i = 0; i < particleCount; i++) {
-                    particles.push({
-                        position: new THREE.Vector3(0, -100, 0), 
-                        velocity: new THREE.Vector3(),
-                        active: false,
-                        life: 0
-                    });
-                }
-                particleDataRef.current = particles;
+                const particles = new Array(particleCount).fill().map(() => ({
+                    pos: new THREE.Vector3(0, -100, 0),
+                    vel: new THREE.Vector3(0,0,0),
+                    active: false,
+                    life: 0
+                }));
 
-                // Interactions
-                let isDragging = false;
-                let prevX = 0, prevY = 0;
-                const onStart = (x, y) => { isDragging = true; prevX = x; prevY = y; };
-                const onMove = (x, y) => {
-                    if (!isDragging) return;
-                    sprinklo.rotation.y += (x - prevX) * 0.01;
-                    sprinklo.rotation.x += (y - prevY) * 0.01;
-                    prevX = x; prevY = y;
+                // Interaction State
+                let drag = { isDown: false, startX: 0, startY: 0 };
+                
+                const onDown = (e) => { drag.isDown = true; drag.startX = e.clientX || e.touches[0].clientX; drag.startY = e.clientY || e.touches[0].clientY; };
+                const onUp = () => { drag.isDown = false; };
+                const onMove = (e) => {
+                    if(!drag.isDown) return;
+                    const x = e.clientX || e.touches[0].clientX;
+                    const y = e.clientY || e.touches[0].clientY;
+                    const dx = x - drag.startX;
+                    const dy = y - drag.startY;
+                    
+                    sprinkloGroup.rotation.y += dx * 0.005;
+                    sprinkloGroup.rotation.x += dy * 0.005;
+                    
+                    drag.startX = x;
+                    drag.startY = y;
                 };
-                const onEnd = () => { isDragging = false; };
 
-                mountRef.current.addEventListener('mousedown', e => onStart(e.clientX, e.clientY));
-                window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-                window.addEventListener('mouseup', onEnd);
-                mountRef.current.addEventListener('touchstart', e => onStart(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
-                window.addEventListener('touchmove', e => onMove(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
-                window.addEventListener('touchend', onEnd);
+                const dom = mountRef.current;
+                dom.addEventListener('mousedown', onDown);
+                dom.addEventListener('touchstart', onDown, {passive: false});
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('touchmove', onMove, {passive: false});
+                window.addEventListener('mouseup', onUp);
+                window.addEventListener('touchend', onUp);
 
-                // Reusables
+                // Loop
                 const capUp = new THREE.Vector3();
-                const tempVec = new THREE.Vector3();
-                const gravity = new THREE.Vector3(0, -0.018, 0);
+                const gravity = new THREE.Vector3(0, -0.015, 0);
+                const tempPos = new THREE.Vector3();
 
                 const animate = () => {
                     requestAnimationFrame(animate);
 
-                    // Animate Model
-                    topGroup.rotation.y = THREE.MathUtils.lerp(topGroup.rotation.y, (rotationAngle * Math.PI) / 180, 0.15);
-                    topGroup.position.y = THREE.MathUtils.lerp(topGroup.position.y, isPressed ? -0.15 : 0, 0.2);
+                    topGroup.rotation.y = THREE.MathUtils.lerp(topGroup.rotation.y, (rotationAngle * Math.PI) / 180, 0.1);
+                    const pushY = isPressed ? -0.15 : 0;
+                    topGroup.position.y = THREE.MathUtils.lerp(topGroup.position.y, pushY, 0.2);
 
-                    // Physics Logic
-                    capUp.set(0, 1, 0).applyQuaternion(sprinklo.quaternion);
-                    const isUpsideDown = capUp.y < -0.5;
-                    const isAligned = Math.abs(rotationAngle % 90) < 10 || Math.abs(rotationAngle % 90) > 80;
-
-                    let spawnMode = 'NONE';
-                    if (isUpsideDown) {
-                        if (isPressed) spawnMode = 'RING';
-                        else if (isAligned) spawnMode = 'HOLES';
+                    capUp.set(0, 1, 0).applyQuaternion(sprinkloGroup.quaternion);
+                    const isUpsideDown = capUp.y < -0.4;
+                    const aligned = Math.abs(rotationAngle % 90) < 10 || Math.abs(rotationAngle % 90) > 80;
+                    
+                    let mode = 'NONE';
+                    if(isUpsideDown) {
+                        if(isPressed) mode = 'RING';
+                        else if(aligned) mode = 'HOLES';
                     }
 
-                    // Animate Particles
-                    let spawnRate = 3;
                     let spawned = 0;
-
-                    for (let i = 0; i < particleCount; i++) {
-                        const p = particles[i];
-
-                        if (p.active) {
-                            p.velocity.add(gravity);
-                            p.position.add(p.velocity);
+                    particles.forEach((p, i) => {
+                        if(p.active) {
+                            p.vel.add(gravity);
+                            p.pos.add(p.vel);
                             p.life--;
-                            
-                            if (p.life <= 0 || p.position.y < -8) {
-                                p.active = false;
-                                p.position.set(0, -100, 0);
-                            }
-                        } else if (spawnMode !== 'NONE' && spawned < spawnRate) {
+                            if(p.life <= 0 || p.pos.y < -5) { p.active = false; p.pos.set(0, -100, 0); }
+                        } else if(mode !== 'NONE' && spawned < 3) { 
                             p.active = true;
-                            p.life = 60 + Math.random() * 20;
+                            p.life = 60 + Math.random() * 30;
                             spawned++;
-
-                            if (spawnMode === 'RING') {
-                                const angle = Math.random() * Math.PI * 2;
-                                const radius = 1.15;
-                                tempVec.set(Math.cos(angle) * radius, 0.1, Math.sin(angle) * radius);
-                                tempVec.applyMatrix4(sprinklo.matrixWorld);
-                                p.position.copy(tempVec);
-                                p.velocity.copy(capUp).multiplyScalar(0.15).addScalar((Math.random()-0.5)*0.02);
+                            
+                            if(mode === 'RING') {
+                                const a = Math.random() * Math.PI * 2;
+                                tempPos.set(Math.cos(a)*1.15, 0.1, Math.sin(a)*1.15);
+                                tempPos.applyMatrix4(sprinkloGroup.matrixWorld);
+                                p.pos.copy(tempPos);
+                                p.vel.copy(capUp).multiplyScalar(0.1 + Math.random()*0.05);
                             } else {
-                                const holeIdx = Math.floor(Math.random() * holePositions.length);
-                                tempVec.copy(holePositions[holeIdx]);
-                                tempVec.y = 0.5;
-                                tempVec.applyMatrix4(topGroup.matrixWorld);
-                                p.position.copy(tempVec);
-                                p.velocity.copy(capUp).multiplyScalar(0.12);
+                                const hIdx = Math.floor(Math.random() * holePositions.length);
+                                tempPos.set(holePositions[hIdx][0], 1.0, holePositions[hIdx][1]);
+                                tempPos.applyMatrix4(topGroup.matrixWorld);
+                                p.pos.copy(tempPos);
+                                p.vel.copy(capUp).multiplyScalar(0.15);
                             }
                         }
-
-                        dummy.position.copy(p.position);
+                        
+                        dummy.position.copy(p.pos);
                         dummy.updateMatrix();
-                        instancedMesh.setMatrixAt(i, dummy.matrix);
-                    }
-                    instancedMesh.instanceMatrix.needsUpdate = true;
+                        particleMesh.setMatrixAt(i, dummy.matrix);
+                    });
+                    particleMesh.instanceMatrix.needsUpdate = true;
+
                     renderer.render(scene, camera);
                 };
                 animate();
 
+                if(onLoaded) onLoaded();
+
                 return () => {
-                    if (mountRef.current && renderer.domElement) mountRef.current.removeChild(renderer.domElement);
+                    if(mountRef.current && renderer.domElement) mountRef.current.removeChild(renderer.domElement);
                     window.removeEventListener('mousemove', onMove);
                     window.removeEventListener('touchmove', onMove);
-                    window.removeEventListener('mouseup', onEnd);
-                    window.removeEventListener('touchend', onEnd);
+                    window.removeEventListener('mouseup', onUp);
+                    window.removeEventListener('touchend', onUp);
                 };
             }, [rotationAngle, isPressed]);
 
             return <div ref={mountRef} className="w-full h-full cursor-move" />;
         };
 
-        // --- Main App Component ---
+        const FAQItem = ({ question, answer, isOpen, toggle }) => (
+            <div className="border-b border-zinc-200">
+                <button 
+                    onClick={toggle}
+                    className="w-full py-6 flex justify-between items-center text-left hover:text-brand-600 transition-colors group"
+                >
+                    <span className="text-lg font-medium text-zinc-800 group-hover:text-brand-600">{question}</span>
+                    <div className={`transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''} text-zinc-400`}>
+                        <Icon path={Icons.ChevronDown} />
+                    </div>
+                </button>
+                <div 
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-48 opacity-100 mb-6' : 'max-h-0 opacity-0'}`}
+                >
+                    <p className="text-zinc-600 leading-relaxed">{answer}</p>
+                </div>
+            </div>
+        );
+
+        const ContactModal = ({ isOpen, onClose }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="bg-zinc-900 w-full max-w-lg rounded-3xl border border-zinc-700 p-8 relative shadow-2xl">
+                        <button onClick={onClose} className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors">
+                            <Icon path={Icons.X} />
+                        </button>
+                        <h3 className="text-2xl font-bold mb-6 text-white">Bulk Inquiry</h3>
+                        <form className="space-y-5">
+                            <div className="grid grid-cols-2 gap-5">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Name</label>
+                                    <input type="text" placeholder="John Doe" className="w-full bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-brand-500 transition-colors placeholder:text-zinc-600 text-sm" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Email</label>
+                                    <input type="email" placeholder="john@example.com" className="w-full bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-brand-500 transition-colors placeholder:text-zinc-600 text-sm" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Organization Type</label>
+                                <select className="w-full bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-brand-500 transition-colors text-sm appearance-none">
+                                    <option>School</option>
+                                    <option>Corporate</option>
+                                    <option>Non-Profit</option>
+                                    <option>Retailer</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Message</label>
+                                <textarea rows="4" placeholder="Tell us about your requirements..." className="w-full bg-zinc-800 border border-zinc-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:border-brand-500 transition-colors placeholder:text-zinc-600 text-sm"></textarea>
+                            </div>
+                            <button className="w-full bg-brand-600 text-white py-4 rounded-xl font-bold text-sm hover:bg-brand-500 transition-colors uppercase tracking-wide flex items-center justify-center gap-2">
+                                Send Request <Icon path={Icons.Send} className="w-4 h-4" />
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
         const App = () => {
             const [rotation, setRotation] = useState(0);
             const [isPressed, setIsPressed] = useState(false);
-            const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-            const togglePush = () => setIsPressed(!isPressed);
-            const cycleAlignment = () => setRotation(prev => prev + 90);
+            const [openFAQ, setOpenFAQ] = useState(null);
+            const [menuOpen, setMenuOpen] = useState(false);
+            const [showBulkModal, setShowBulkModal] = useState(false);
 
             return (
-                <div className="min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden selection:bg-blue-100 selection:text-blue-900">
-                    <nav className="fixed w-full bg-white/95 backdrop-blur-md z-50 border-b border-slate-200">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <div className="flex justify-between h-16 md:h-20 items-center">
-                                <div className="flex items-center gap-2">
-                                    <div className="bg-blue-600 p-1.5 md:p-2 rounded-xl text-white shadow-lg">
-                                        <Droplets size={20} className="md:w-6 md:h-6" />
-                                    </div>
-                                    <span className="text-xl md:text-2xl font-black tracking-tighter text-slate-900">SPRINKLO</span>
-                                </div>
-                                
-                                <div className="hidden md:flex items-center gap-10 text-sm font-bold uppercase tracking-widest text-slate-500">
-                                    <a href="#how-it-works" className="hover:text-blue-600 transition-colors">Mechanism</a>
-                                    <a href="#preorder" className="hover:text-blue-600 transition-colors">Pre-order</a>
-                                    <a href="#contact" className="hover:text-blue-600 transition-colors">Contact</a>
-                                    <button className="bg-slate-900 text-white px-8 py-3 rounded-2xl hover:bg-blue-600 transition-all shadow-xl shadow-slate-200 font-bold tracking-tight">
-                                        Pre-order Yours — ₹299
-                                    </button>
-                                </div>
-
-                                <div className="md:hidden">
-                                    <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="p-2 text-slate-600">
-                                        {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                                    </button>
-                                </div>
+                <div className="min-h-screen flex flex-col">
+                    {/* Navigation */}
+                    <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-xl border-b border-zinc-100 z-50">
+                        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+                            <div className="flex items-center gap-2 font-black text-2xl tracking-tighter text-zinc-900">
+                                <div className="text-brand-500"><Icon path={Icons.Droplets} /></div>
+                                SPRINKLO
                             </div>
+                            
+                            {/* Desktop Nav */}
+                            <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-zinc-500">
+                                <a href="#features" className="hover:text-brand-600 transition-colors">Features</a>
+                                <a href="#faq" className="hover:text-brand-600 transition-colors">FAQ</a>
+                                <a href="#order" className="hover:text-brand-600 transition-colors">Contact</a>
+                                <a href="#order" className="bg-zinc-900 text-white px-6 py-2.5 rounded-full hover:bg-brand-600 transition-all shadow-lg shadow-zinc-200">
+                                    Get Sprinklo
+                                </a>
+                            </div>
+
+                            {/* Mobile Nav Toggle */}
+                            <button className="md:hidden p-2 text-zinc-600" onClick={() => setMenuOpen(!menuOpen)}>
+                                <Icon path={menuOpen ? Icons.X : Icons.Menu} />
+                            </button>
                         </div>
                         
-                        {isMenuOpen && (
-                            <div className="md:hidden bg-white border-b border-slate-200 p-4 space-y-4 animate-in slide-in-from-top duration-300">
-                                <a href="#how-it-works" className="block text-lg font-bold text-slate-700" onClick={() => setIsMenuOpen(false)}>Mechanism</a>
-                                <a href="#preorder" className="block text-lg font-bold text-slate-700" onClick={() => setIsMenuOpen(false)}>Pre-order</a>
-                                <a href="#contact" className="block text-lg font-bold text-slate-700" onClick={() => setIsMenuOpen(false)}>Contact</a>
+                        {/* Mobile Menu */}
+                        {menuOpen && (
+                            <div className="md:hidden absolute top-20 left-0 w-full bg-white border-b border-zinc-100 p-6 flex flex-col gap-4 shadow-xl">
+                                <a href="#features" onClick={()=>setMenuOpen(false)} className="text-lg font-medium text-zinc-800">Features</a>
+                                <a href="#faq" onClick={()=>setMenuOpen(false)} className="text-lg font-medium text-zinc-800">FAQ</a>
+                                <a href="#order" onClick={()=>setMenuOpen(false)} className="text-lg font-medium text-brand-600">Get Sprinklo</a>
                             </div>
                         )}
                     </nav>
 
-                    <section className="pt-24 md:pt-36 pb-16 px-4">
-                        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 md:gap-20 items-center">
-                            <div className="space-y-10 order-2 lg:order-1">
-                                <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-xs font-bold uppercase tracking-widest border border-blue-100">
-                                    <Recycle size={14} className="animate-pulse" />
-                                    Universal Mechanical Cap
+                    {/* HERO SECTION */}
+                    <header className="pt-32 pb-16 lg:pt-0 lg:h-screen flex items-center relative overflow-hidden">
+                        <div className="max-w-7xl mx-auto px-6 w-full grid lg:grid-cols-2 gap-12 items-center h-full">
+                            
+                            {/* Left: Content */}
+                            <div className="space-y-8 z-10 lg:pl-4 pt-10 lg:pt-0">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-zinc-100 text-zinc-600 rounded-full text-xs font-bold uppercase tracking-widest">
+                                    <Icon path={Icons.Recycle} className="w-4 h-4 text-brand-500" />
+                                    Sustainable Design
                                 </div>
-                                <div className="space-y-6">
-                                    <h1 className="text-5xl md:text-7xl font-black leading-[1.1] text-slate-900 tracking-tight">
-                                        Sprinkle. Drink. <br />
-                                        <span className="text-blue-600">Zero Damage.</span>
-                                    </h1>
-                                    <p className="text-lg md:text-xl text-slate-600 max-w-lg leading-relaxed font-medium">
-                                        The all-in-one replacement cap. Rotate for a controlled spray, push for a full drink, and lock it tight for travel. Fits 95% of standard bottles.
-                                    </p>
+                                <h1 className="text-5xl lg:text-7xl font-black text-zinc-900 leading-[1.1] tracking-tight">
+                                    The Cap <br/>
+                                    That Does <span className="text-brand-600">More.</span>
+                                </h1>
+                                <p className="text-xl text-zinc-500 max-w-md font-medium leading-relaxed">
+                                    Stop destroying bottles. Sprinklo fits 95% of standard bottles, adding a spray, drink, and seal mode instantly.
+                                </p>
+                                
+                                <div className="flex flex-wrap gap-4">
+                                    <a href="#order" className="bg-brand-600 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-brand-700 transition-all shadow-glow flex items-center gap-2">
+                                        Pre-order Yours <Icon path={Icons.ChevronDown} className="w-5 h-5 -rotate-90" />
+                                    </a>
+                                    <button className="px-8 py-4 rounded-full font-bold text-zinc-600 border border-zinc-200 hover:border-brand-300 hover:text-brand-600 transition-all bg-white">
+                                        View Specs
+                                    </button>
                                 </div>
-                                <div className="flex flex-col sm:flex-row gap-4 pt-4 items-start">
-                                    <div className="p-8 bg-white rounded-3xl border border-slate-200 shadow-2xl shadow-blue-50 inline-block">
-                                        <span className="text-[10px] font-black text-slate-400 block mb-3 uppercase tracking-widest">Early Bird Offer</span>
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-6xl font-black text-slate-900 tracking-tighter">₹299</span>
-                                            <div className="flex flex-col gap-1">
-                                                <span className="text-sm text-slate-400 font-bold line-through decoration-slate-300">₹800</span>
-                                                <span className="px-2 py-1 bg-green-100 text-green-700 text-[10px] font-black rounded uppercase tracking-wide">Save 60%</span>
-                                            </div>
-                                        </div>
+
+                                <div className="pt-8 border-t border-zinc-100 flex gap-8">
+                                    <div>
+                                        <div className="text-3xl font-black text-zinc-900">₹299</div>
+                                        <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Early Bird Price</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-3xl font-black text-zinc-900">100%</div>
+                                        <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Mechanical</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="relative order-1 lg:order-2 flex flex-col gap-6">
-                                <div className="bg-white rounded-[40px] md:rounded-[56px] shadow-2xl shadow-blue-100/50 border border-slate-200 overflow-hidden h-[400px] md:h-[500px] relative">
-                                    <div className="absolute top-6 right-6 z-10 px-4 py-2 bg-white/80 backdrop-blur-md rounded-full border border-slate-200 flex items-center gap-2 shadow-sm">
-                                        <Maximize2 size={12} className="text-blue-600" />
-                                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Interactive Stage</span>
+                            {/* Right: 3D Stage */}
+                            <div className="relative h-[500px] lg:h-[800px] w-full flex items-center justify-center lg:translate-x-10">
+                                {/* Background Blob */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-brand-100 rounded-full blur-3xl opacity-50 -z-10"></div>
+                                
+                                <div className="relative w-full h-full">
+                                    <SprinkloCanvas rotationAngle={rotation} isPressed={isPressed} />
+                                    
+                                    {/* 3D Controls Overlay */}
+                                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 glass-panel px-6 py-3 rounded-2xl border border-white/50 shadow-xl flex items-center gap-6">
+                                        <button 
+                                            onClick={() => setRotation(r => r + 90)}
+                                            className="flex flex-col items-center gap-1 group"
+                                        >
+                                            <div className="p-3 rounded-xl bg-white text-zinc-400 group-hover:text-brand-600 group-hover:shadow-md transition-all">
+                                                <Icon path={Icons.Rotate} />
+                                            </div>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Rotate</span>
+                                        </button>
+                                        <div className="w-px h-8 bg-zinc-200"></div>
+                                        <button 
+                                            onClick={() => setIsPressed(!isPressed)}
+                                            className="flex flex-col items-center gap-1 group"
+                                        >
+                                            <div className={`p-3 rounded-xl transition-all ${isPressed ? 'bg-brand-600 text-white shadow-glow' : 'bg-white text-zinc-400 group-hover:text-brand-600 group-hover:shadow-md'}`}>
+                                                <Icon path={Icons.Hand} />
+                                            </div>
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Push</span>
+                                        </button>
                                     </div>
-                                    <Sprinklo3DModel rotationAngle={rotation} isPressed={isPressed} />
-                                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/90 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-100 shadow-lg pointer-events-none">
-                                        <Touchpad size={16} className="text-blue-600" />
-                                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Tilt upside down to flow</span>
+                                    
+                                    <div className="absolute top-10 right-10 text-right hidden lg:block">
+                                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Interactive Model</p>
+                                        <p className="text-[10px] text-zinc-300">Drag to Flip • Click buttons to test</p>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </header>
 
-                                <div className="flex justify-center items-center gap-4 py-4 px-6 bg-white border border-slate-200 rounded-3xl shadow-xl shadow-slate-100 self-center md:self-start">
-                                    <button 
-                                    onClick={cycleAlignment} 
-                                    className="p-4 bg-slate-50 border border-slate-100 rounded-2xl shadow-sm hover:bg-blue-600 hover:text-white transition-all group flex items-center gap-3"
-                                    title="Rotate Hole Alignment"
-                                    >
-                                    <RotateCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
-                                    <div className="text-left">
-                                        <span className="text-[10px] font-black uppercase tracking-widest block leading-none">Rotate Holes</span>
-                                        <span className="text-[9px] font-bold text-slate-400 group-hover:text-blue-100">Toggle Sprinkle</span>
+                    {/* Features Grid */}
+                    <section id="features" className="py-24 bg-white border-y border-zinc-100">
+                        <div className="max-w-7xl mx-auto px-6">
+                            <div className="text-center max-w-2xl mx-auto mb-20">
+                                <h2 className="text-3xl font-black text-zinc-900 mb-4">Precision Engineering</h2>
+                                <p className="text-zinc-500">Three distinct modes packed into one industrial-grade polymer shell. No batteries, just physics.</p>
+                            </div>
+                            
+                            <div className="grid md:grid-cols-3 gap-8">
+                                {[
+                                    { icon: Icons.Rotate, title: "Gravity Spray", desc: "Rotate to align internal ports. Invert the bottle for a gentle, controlled rain effect." },
+                                    { icon: Icons.Hand, title: "Push-to-Drink", desc: "Mechanical bypass system. Press the top to engage high-volume flow for hydration." },
+                                    { icon: Icons.Shield, title: "Travel Lock", desc: "Misalign the ports or screw on the outer shell for a hermetic, leak-proof seal." }
+                                ].map((f, i) => (
+                                    <div key={i} className="p-8 rounded-3xl bg-zinc-50 hover:bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-zinc-100">
+                                        <div className="w-12 h-12 bg-white rounded-xl shadow-sm text-brand-600 flex items-center justify-center mb-6 border border-zinc-100">
+                                            <Icon path={f.icon} />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-zinc-900 mb-3">{f.title}</h3>
+                                        <p className="text-sm text-zinc-500 leading-relaxed">{f.desc}</p>
                                     </div>
-                                    </button>
-                                    <div className="w-[1px] h-10 bg-slate-200"></div>
-                                    <button 
-                                    onClick={togglePush} 
-                                    className={`p-4 border border-slate-100 rounded-2xl shadow-sm transition-all group flex items-center gap-3 ${isPressed ? 'bg-blue-600 text-white shadow-blue-200' : 'bg-slate-50 text-slate-900 hover:bg-slate-100'}`}
-                                    title="Toggle Push Mode (Mechanical Drink)"
-                                    >
-                                    <HandMetal size={20} className={isPressed ? 'animate-bounce' : ''} />
-                                    <div className="text-left">
-                                        <span className="text-[10px] font-black uppercase tracking-widest block leading-none">Push Mode</span>
-                                        <span className={`text-[9px] font-bold ${isPressed ? 'text-blue-100' : 'text-slate-400'}`}>
-                                        {isPressed ? 'Ring Flow Active' : 'Standard Flow'}
-                                        </span>
-                                    </div>
-                                    </button>
-                                </div>
+                                ))}
                             </div>
                         </div>
                     </section>
 
-                    <section id="how-it-works" className="py-24 bg-white relative">
-                        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
-                        <div className="max-w-7xl mx-auto px-4">
-                            <div className="grid md:grid-cols-2 gap-20 items-center">
-                                <div className="space-y-12">
-                                    <h2 className="text-5xl font-black text-slate-900 tracking-tight">3-Layer <br /><span className="text-blue-600">Mechanical Logic</span></h2>
-                                    <div className="space-y-10">
-                                        {[
-                                            { n: "01", t: "Top Structural Layer", d: "Industrial-grade head that rotates to adjust hole alignment." },
-                                            { n: "02", t: "Medical Silicone Barrier", d: "A flexible heart that ensures a liquid-tight seal during transport." },
-                                            { n: "03", t: "Inner Mechanical Control", d: "Aligns ports for Spray Mode or shuts them completely for travel." }
-                                        ].map((step, i) => (
-                                            <div key={i} className="flex gap-6 group">
-                                                <div className="w-14 h-14 bg-slate-50 border border-slate-100 text-blue-600 rounded-2xl flex items-center justify-center font-black text-xl shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">{step.n}</div>
+                    {/* FAQ Section */}
+                    <section id="faq" className="py-24 bg-zinc-50">
+                        <div className="max-w-3xl mx-auto px-6">
+                            <h2 className="text-3xl font-black text-zinc-900 mb-10 tracking-tight">Common Questions</h2>
+                            <div className="bg-white rounded-3xl p-8 shadow-sm border border-zinc-100">
+                                {[
+                                    { q: "Will this fit my water bottle?", a: "Sprinklo is designed for the international standard 28mm PCO neck finish, which covers about 95% of soda and water bottles sold globally." },
+                                    { q: "Is it dishwasher safe?", a: "Yes. We use high-temperature resistant polycarbonate and medical-grade silicone. Top rack recommended." },
+                                    { q: "Is it leak-proof?", a: "Absolutely. When in 'Lock Mode' or with the travel cap screwed on, it is rated for submersion and bag travel." },
+                                    { q: "When will I receive my order?", a: "Pre-orders ship in batches. Current estimated dispatch is 2-3 weeks from order date." }
+                                ].map((item, i) => (
+                                    <FAQItem 
+                                        key={i} 
+                                        question={item.q} 
+                                        answer={item.a} 
+                                        isOpen={openFAQ === i} 
+                                        toggle={() => setOpenFAQ(openFAQ === i ? null : i)} 
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* REWORKED: Unified Order & Contact Section */}
+                    <section id="order" className="bg-zinc-900 py-24 text-white">
+                        <div className="max-w-5xl mx-auto px-6">
+                            <h2 className="text-5xl font-black mb-4 tracking-tight">Get Sprinklo.</h2>
+                            <p className="text-zinc-400 max-w-xl mb-12">Join the hydration revolution. Secure your unit at the exclusive early-bird price.</p>
+                            
+                            <div className="bg-zinc-800 rounded-3xl border border-zinc-700 shadow-2xl grid md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-zinc-700 overflow-hidden">
+                                
+                                {/* Left Panel: Pre-order */}
+                                <div className="p-10 flex flex-col h-full justify-between">
+                                    <div>
+                                        <div className="flex justify-between items-start mb-8">
+                                            <div>
+                                                <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">One Unit</div>
+                                                <div className="text-5xl font-black text-white">₹299</div>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 bg-green-900/30 text-green-400 px-3 py-1 rounded-lg text-[10px] font-bold uppercase border border-green-900/50">
+                                                <Icon path={Icons.Check} className="w-3.5 h-3.5" />
+                                                In Stock
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-6 mb-10">
+                                            <div className="flex items-start gap-4">
+                                                <Icon path={Icons.Check} className="w-6 h-6 text-brand-500 shrink-0" />
                                                 <div>
-                                                    <h4 className="text-xl font-bold mb-2 text-slate-900">{step.t}</h4>
-                                                    <p className="text-slate-500 text-sm font-medium leading-relaxed">{step.d}</p>
+                                                    <div className="font-bold text-sm">Free India-wide Shipping</div>
+                                                    <div className="text-xs text-zinc-500">Delivered within 5-7 days</div>
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="bg-slate-50 p-10 md:p-16 rounded-[48px] border border-slate-200 shadow-inner">
-                                    <div className="space-y-12">
-                                        <div className="flex items-start gap-6">
-                                            <div className="p-4 bg-white rounded-2xl shadow-sm text-blue-600 border border-slate-100"><HandMetal size={32} /></div>
-                                            <div>
-                                                <h4 className="text-2xl font-black mb-2 uppercase tracking-tight text-slate-900">Push to Drink</h4>
-                                                <p className="text-slate-500 text-sm leading-relaxed font-medium">Bypass the sprinkle ports. The push mechanism shifts flow to the outer blue ring for normal hydration.</p>
+                                            <div className="flex items-start gap-4">
+                                                <Icon path={Icons.Check} className="w-6 h-6 text-brand-500 shrink-0" />
+                                                <div>
+                                                    <div className="font-bold text-sm">1-Year Mechanical Warranty</div>
+                                                    <div className="text-xs text-zinc-500">Full replacement coverage</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-start gap-6">
-                                            <div className="p-4 bg-white rounded-2xl shadow-sm text-blue-600 border border-slate-100"><Waves size={32} /></div>
-                                            <div>
-                                                <h4 className="text-2xl font-black mb-2 uppercase tracking-tight text-slate-900">Gravity Spray</h4>
-                                                <p className="text-slate-500 text-sm leading-relaxed font-medium">Rotate to align ports and invert the bottle to enjoy a controlled sprinkle effect via the top holes.</p>
+                                            <div className="flex items-start gap-4">
+                                                <Icon path={Icons.Check} className="w-6 h-6 text-brand-500 shrink-0" />
+                                                <div>
+                                                    <div className="font-bold text-sm">30-Day Money Back Guarantee</div>
+                                                    <div className="text-xs text-zinc-500">No questions asked return policy</div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
 
-                    <section id="preorder" className="py-24 bg-gradient-to-br from-slate-900 to-blue-900 text-white relative overflow-hidden">
-                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl -mr-48 -mt-48 pointer-events-none"></div>
-                        
-                        <div className="max-w-4xl mx-auto text-center relative z-10 px-4">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-300 border border-blue-500/30 rounded-full text-xs font-black uppercase tracking-widest mb-8 backdrop-blur-sm">
-                                <Timer size={14} className="animate-pulse" />
-                                Limited Time Offer
+                                    <button className="w-full bg-white text-zinc-900 py-4 rounded-xl font-bold text-sm hover:bg-zinc-100 transition-colors uppercase tracking-wide">
+                                        Proceed to Checkout
+                                    </button>
+                                </div>
+
+                                {/* Right Panel: Bulk Order Info */}
+                                <div className="p-10 flex flex-col h-full justify-between bg-zinc-800/50">
+                                    <div>
+                                        <h3 className="text-2xl font-bold mb-4 text-white">Bulk Orders & Support</h3>
+                                        <p className="text-zinc-400 text-sm mb-8 leading-relaxed">
+                                            Equip your entire school or organization with Sprinklo. We offer dedicated support, custom branding, and exclusive volume discounts for education partners.
+                                        </p>
+                                        
+                                        <div className="space-y-6 mb-10">
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-6 h-6 rounded-full bg-brand-900/50 text-brand-400 flex items-center justify-center shrink-0 border border-brand-800">
+                                                    <Icon path={Icons.Recycle} className="w-3 h-3" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-sm text-zinc-200">Volume Discounts</div>
+                                                    <div className="text-xs text-zinc-500">Save up to 40% on bulk orders</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-6 h-6 rounded-full bg-brand-900/50 text-brand-400 flex items-center justify-center shrink-0 border border-brand-800">
+                                                    <Icon path={Icons.Shield} className="w-3 h-3" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-sm text-zinc-200">Priority Support</div>
+                                                    <div className="text-xs text-zinc-500">Dedicated account manager</div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-start gap-4">
+                                                <div className="w-6 h-6 rounded-full bg-brand-900/50 text-brand-400 flex items-center justify-center shrink-0 border border-brand-800">
+                                                    <Icon path={Icons.Users} className="w-3 h-3" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold text-sm text-zinc-200">Custom Branding</div>
+                                                    <div className="text-xs text-zinc-500">Add your school logo (MOQ 500+)</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setShowBulkModal(true)}
+                                        className="w-full bg-brand-600 text-white py-4 rounded-xl font-bold text-sm hover:bg-brand-500 transition-colors uppercase tracking-wide flex items-center justify-center gap-2"
+                                    >
+                                        Continue to Inquiry <Icon path={Icons.ArrowRight} className="w-4 h-4" />
+                                    </button>
+                                </div>
+
                             </div>
-                            <h2 className="text-5xl md:text-7xl font-black mb-8 tracking-tighter">Pre-order Yours Today.</h2>
-                            <p className="text-xl text-blue-100 font-medium mb-10 max-w-2xl mx-auto leading-relaxed">Be the first to experience Sprinklo. Lock in the early bird price of ₹299 before we hit retail shelves.</p>
                             
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                <button className="px-10 py-5 bg-white text-blue-900 rounded-2xl font-black text-lg hover:bg-blue-50 transition-all shadow-xl hover:scale-105 flex items-center justify-center gap-3">
-                                <ShoppingBag size={20} /> Pre-order Yours — ₹299
-                                </button>
-                                <button className="px-10 py-5 bg-transparent border border-blue-400 text-white rounded-2xl font-bold text-lg hover:bg-blue-800/50 transition-all flex items-center justify-center gap-2">
-                                Bulk Order Info <ChevronRight size={20} />
-                                </button>
-                            </div>
-                            <div className="mt-8 flex items-center justify-center gap-6 text-xs font-bold text-blue-300 uppercase tracking-widest">
-                                <span className="flex items-center gap-2"><ShieldCheck size={14} /> 1 Year Warranty</span>
-                                <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                                <span>Ships Worldwide</span>
+                            <div className="mt-12 flex justify-center items-center gap-8 text-sm text-zinc-500">
+                                <div className="flex items-center gap-2 hover:text-zinc-300 transition-colors cursor-pointer"><Icon path={Icons.Mail} className="w-4 h-4" /> visheshjangid98@gmail.com</div>
+                                <div className="w-1 h-1 bg-zinc-700 rounded-full"></div>
+                                <div className="flex items-center gap-2 hover:text-zinc-300 transition-colors cursor-pointer"><Icon path={Icons.Recycle} className="w-4 h-4" /> Jaipur, India</div>
                             </div>
                         </div>
                     </section>
 
-                    <section id="contact" className="py-24 bg-slate-50 border-t border-slate-200">
-                        <div className="max-w-7xl mx-auto px-4 grid lg:grid-cols-2 gap-16">
-                            <div className="space-y-8">
-                                <h2 className="text-5xl font-black tracking-tighter text-slate-900">Get in <span className="text-blue-600">Touch.</span></h2>
-                                <p className="text-slate-600 text-lg font-medium max-w-md">Questions about bulk orders or technology licensing? Reach out directly to our engineering team.</p>
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-4 text-slate-600">
-                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-600 border border-slate-100"><Mail size={20} /></div>
-                                        <span className="font-bold">hello@sprinklo.in</span>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-slate-600">
-                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-600 border border-slate-100"><Phone size={20} /></div>
-                                        <span className="font-bold">+91 98765 43210</span>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-slate-600">
-                                        <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-600 border border-slate-100"><MapPin size={20} /></div>
-                                        <span className="font-bold">Mumbai Innovation Lab, India</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <form className="bg-white p-10 rounded-[40px] shadow-xl border border-slate-100 space-y-6">
-                                <div className="grid grid-cols-2 gap-6">
-                                    <input type="text" className="bg-slate-50 rounded-2xl px-6 py-4 outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Name" />
-                                    <input type="email" className="bg-slate-50 rounded-2xl px-6 py-4 outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Email" />
-                                </div>
-                                <textarea rows="4" className="w-full bg-slate-50 rounded-2xl px-6 py-4 outline-none font-medium text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 transition-all" placeholder="Your Message..."></textarea>
-                                <button className="w-full bg-blue-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest flex items-center justify-center gap-3 hover:bg-blue-700 transition-all shadow-lg shadow-blue-100">
-                                    Send Message <Send size={20} />
-                                </button>
-                            </form>
-                        </div>
-                    </section>
+                    {/* Modal */}
+                    <ContactModal isOpen={showBulkModal} onClose={() => setShowBulkModal(false)} />
 
-                    <footer className="py-16 bg-slate-900 text-white px-4">
-                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
-                            <div className="text-center md:text-left">
-                                <div className="flex items-center gap-3 justify-center md:justify-start mb-4">
-                                    <Droplets className="text-blue-500" />
-                                    <span className="text-3xl font-black tracking-tighter text-white">SPRINKLO.</span>
-                                </div>
-                                <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1">Mechanical Innovation</p>
+                    {/* Footer - Updated to match dark theme */}
+                    <footer className="bg-zinc-950 text-zinc-500 py-12 border-t border-zinc-900">
+                        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="text-sm font-medium">
+                                © 2026 Sprinklo Innovation Lab.
                             </div>
-                            <div className="flex flex-col items-center md:items-end">
-                                <div className="text-blue-400 font-black text-4xl">₹299</div>
-                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1">Free Delivery across India</p>
+                            <div className="flex gap-8 text-sm font-bold uppercase tracking-wider">
+                                <a href="#" className="hover:text-white transition-colors">Privacy</a>
+                                <a href="#" className="hover:text-white transition-colors">Terms</a>
+                                <a href="#" className="hover:text-white transition-colors">Warranty</a>
                             </div>
-                        </div>
-                        <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-slate-800 text-center text-slate-600 text-[10px] font-bold uppercase tracking-widest uppercase">
-                            © 2024 Sprinklo Lab.
                         </div>
                     </footer>
                 </div>
